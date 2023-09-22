@@ -24,14 +24,14 @@ import math
 
 # CARGA FUNCIONES DEL PROGRAMA
 from fancy_plots import plot_pose, plot_error, plot_time
-from Functions_SimpleModel import f_system_simple_model_external
+from Functions_SimpleModel import f_system_simple_model
 from Functions_SimpleModel import f_d, odometry_call_back, get_odometry_simple, send_velocity_control, pub_odometry_sim
 
 def create_ocp_solver_description(x0, N_horizon, t_horizon, zp_max, zp_min, phi_max, phi_min, theta_max, theta_min, psi_max, psi_min) -> AcadosOcp:
     # create ocp object to formulate the OCP
     ocp = AcadosOcp()
 
-    model, f_system = f_system_simple_model_external()
+    model, f_system = f_system_simple_model()
     ocp.model = model
     ocp.p = model.p
     nx = model.x.size()[0]
@@ -53,7 +53,7 @@ def create_ocp_solver_description(x0, N_horizon, t_horizon, zp_max, zp_min, phi_
     R_mat[2, 2] = 1.3*(1/2)
     R_mat[3, 3] = 1.3*(1/2)
     
-    ocp.parameter_values = np.array([0, 0, 0, 0, 0, 0, 0, 0])
+    ocp.parameter_values = np.zeros(ny)
 
     ocp.cost.cost_type = "EXTERNAL"
     ocp.cost.cost_type_e = "EXTERNAL"
@@ -168,7 +168,7 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
         print("Init System")
 
     # Create Optimal problem
-    model, f = f_system_simple_model_external()
+    model, f = f_system_simple_model()
 
     ocp = create_ocp_solver_description(x[:,0], N_prediction, t_prediction, zp_ref_max, zp_ref_min, phi_max, phi_min, theta_max, theta_min, psi_max, psi_min)
     #acados_ocp_solver = AcadosOcpSolver(ocp, json_file="acados_ocp_" + ocp.model.name + ".json", build= True, generate= True)
@@ -199,8 +199,7 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
     
 
     for k in range(0, t.shape[0]-N_prediction):
-        
-        
+              
         Error[:,k] = xref[0:3, k] - x[0:3, k]
 
         # Control Law Section
@@ -209,10 +208,10 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
 
         # SET REFERENCES
         for j in range(N_prediction):
-            yref = xref[0:8,k+j]
+            yref = xref[:,k+j]
             acados_ocp_solver.set(j, "p", yref)
 
-        yref_N = xref[0:8,k+N_prediction]
+        yref_N = xref[:,k+N_prediction]
         acados_ocp_solver.set(N_prediction, "p", yref_N)
         
         
@@ -232,13 +231,13 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
         send_velocity_control(u_control[:, k], vel_pub, vel_msg)
 
         # System Evolution
-        opcion = "Real"  # Valor que quieres evaluar
+        opcion = "Sim"  # Valor que quieres evaluar
 
         if opcion == "Real":
             x[:, k+1] = get_odometry_simple()
         elif opcion == "Sim":
             x[:, k+1] = f_d(x[:, k], u_control[:, k], t_s, f)
-            pub_odometry_sim(x[:, k+1])
+            pub_odometry_sim(x[:, k+1], odom_sim_pub, odom_sim_msg)
         else:
             print("Opción no válida")
         

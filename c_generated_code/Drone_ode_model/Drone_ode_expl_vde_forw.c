@@ -46,6 +46,7 @@ extern "C" {
 #define casadi_s13 CASADI_PREFIX(s13)
 #define casadi_s14 CASADI_PREFIX(s14)
 #define casadi_s15 CASADI_PREFIX(s15)
+#define casadi_s16 CASADI_PREFIX(s16)
 #define casadi_s2 CASADI_PREFIX(s2)
 #define casadi_s3 CASADI_PREFIX(s3)
 #define casadi_s4 CASADI_PREFIX(s4)
@@ -341,10 +342,11 @@ static const casadi_int casadi_s12[5] = {4, 1, 0, 1, 2};
 static const casadi_int casadi_s13[5] = {4, 1, 0, 1, 3};
 static const casadi_int casadi_s14[75] = {8, 8, 0, 8, 16, 24, 32, 40, 48, 56, 64, 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7};
 static const casadi_int casadi_s15[8] = {4, 1, 0, 4, 0, 1, 2, 3};
+static const casadi_int casadi_s16[16] = {12, 1, 0, 12, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
 
 static const casadi_real casadi_c0[16] = {1., 0., 0., 0., 0., 1., 0., 0., 0., 0., 1., 0., 0., 0., 0., 1.};
 
-/* Drone_ode_expl_vde_forw:(i0[8],i1[8x8],i2[8x4],i3[4],i4[8])->(o0[8],o1[8x8],o2[8x4]) */
+/* Drone_ode_expl_vde_forw:(i0[8],i1[8x8],i2[8x4],i3[4],i4[12])->(o0[8],o1[8x8],o2[8x4]) */
 static int casadi_f0(const casadi_real** arg, casadi_real** res, casadi_int* iw, casadi_real* w, int mem) {
   casadi_int i, j, k;
   casadi_real *rr, *ss, *tt;
@@ -3113,7 +3115,7 @@ CASADI_SYMBOL_EXPORT const casadi_int* Drone_ode_expl_vde_forw_sparsity_in(casad
     case 1: return casadi_s14;
     case 2: return casadi_s10;
     case 3: return casadi_s15;
-    case 4: return casadi_s8;
+    case 4: return casadi_s16;
     default: return 0;
   }
 }

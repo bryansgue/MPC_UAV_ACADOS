@@ -266,7 +266,7 @@ static const casadi_int casadi_s6[16] = {12, 1, 0, 12, 0, 1, 2, 3, 4, 5, 6, 7, 8
 
 static const casadi_real casadi_c0[16] = {1., 0., 0., 0., 0., 1., 0., 0., 0., 0., 1., 0., 0., 0., 0., 1.};
 
-/* Drone_ode_expl_vde_adj:(i0[8],i1[8],i2[4],i3[8])->(o0[12]) */
+/* Drone_ode_expl_vde_adj:(i0[8],i1[8],i2[4],i3[12])->(o0[12]) */
 static int casadi_f0(const casadi_real** arg, casadi_real** res, casadi_int* iw, casadi_real* w, int mem) {
   casadi_int i, j, k;
   casadi_real *rr, *ss, *tt;
@@ -863,7 +863,7 @@ CASADI_SYMBOL_EXPORT const casadi_int* Drone_ode_expl_vde_adj_sparsity_in(casadi
     case 0: return casadi_s4;
     case 1: return casadi_s4;
     case 2: return casadi_s5;
-    case 3: return casadi_s4;
+    case 3: return casadi_s6;
     default: return 0;
   }
 }

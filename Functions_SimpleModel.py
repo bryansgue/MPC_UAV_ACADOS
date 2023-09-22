@@ -87,7 +87,12 @@ def f_system_simple_model_external():
     un_d = MX.sym('un_d')
     w_d = MX.sym('w_d')
     
-    p = vertcat(nx_d, ny_d, nz_d, psi_d, ul_d, um_d, un_d, w_d)
+    ul_ref_d= MX.sym('ul_ref_d')
+    um_ref_d= MX.sym('um_ref_d')
+    un_ref_d = MX.sym('un_ref_d')
+    w_ref_d = MX.sym('w_ref_d')
+    
+    p = vertcat(nx_d, ny_d, nz_d, psi_d, ul_d, um_d, un_d, w_d, ul_ref_d, um_ref_d, un_ref_d, w_ref_d)
 
     # Rotational Matrix
     a = 0
@@ -181,8 +186,13 @@ def f_system_simple_model():
     um_d= MX.sym('um_d')
     un_d = MX.sym('un_d')
     w_d = MX.sym('w_d')
+
+    ul_ref_d= MX.sym('ul_ref_d')
+    um_ref_d= MX.sym('um_ref_d')
+    un_ref_d = MX.sym('un_ref_d')
+    w_ref_d = MX.sym('w_ref_d')
     
-    p = vertcat(nx_d, ny_d, nz_d, psi_d, ul_d, um_d, un_d, w_d)
+    p = vertcat(nx_d, ny_d, nz_d, psi_d, ul_d, um_d, un_d, w_d, ul_ref_d, um_ref_d, un_ref_d, w_ref_d)
 
     # Rotational Matrix
     a = 0
@@ -220,7 +230,7 @@ def f_system_simple_model():
     model.xdot = xdot
     model.u = u
     model.name = model_name
-    #model.p = p
+    model.p = p
 
     return model, f_system
 
@@ -341,7 +351,7 @@ def f_system_simple_model_quat():
     model.xdot = xdot
     model.u = u
     model.name = model_name
-    model.p = p
+    #model.p = p
 
     return model, f_system
 

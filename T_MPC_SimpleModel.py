@@ -36,7 +36,9 @@ def create_ocp_solver_description(x0, N_horizon, t_horizon, zp_max, zp_min, phi_
     ocp.model = model
     nx = model.x.size()[0]
     nu = model.u.size()[0]
+    
     ny = nx + nu
+    ny_e = nx
 
     # set dimensions
     ocp.dims.N = N_horizon
@@ -55,11 +57,12 @@ def create_ocp_solver_description(x0, N_horizon, t_horizon, zp_max, zp_min, phi_
     R_mat[2, 2] = 1.3*(1/2)
     R_mat[3, 3] = 1.3*(1/2)
 
+    ocp.parameter_values = np.zeros(ny)
+    
     ocp.cost.cost_type = "LINEAR_LS"
     ocp.cost.cost_type_e = "LINEAR_LS"
 
-    ny = nx + nu
-    ny_e = nx
+    
 
     ocp.cost.W_e = Q_mat
     ocp.cost.W = scipy.linalg.block_diag(Q_mat, R_mat)
@@ -235,13 +238,13 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
         send_velocity_control(u_control[:, k], vel_pub, vel_msg)
 
         # System Evolution
-        opcion = "Real"  # Valor que quieres evaluar
+        opcion = "Sim"  # Valor que quieres evaluar
 
         if opcion == "Real":
             x[:, k+1] = get_odometry_simple()
         elif opcion == "Sim":
             x[:, k+1] = f_d(x[:, k], u_control[:, k], t_s, f)
-            pub_odometry_sim(x[:, k+1])
+            pub_odometry_sim(x[:, k+1], odom_sim_pub, odom_sim_msg)
         else:
             print("Opción no válida")
         

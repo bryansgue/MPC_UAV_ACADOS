@@ -46,15 +46,6 @@ MODEL_OBJ := $(MODEL_SRC:.c=.o)
 
 # optimal control problem - mostly CasADi exports
 OCP_SRC=
-OCP_SRC+= Drone_ode_cost/Drone_ode_cost_ext_cost_0_fun.c
-OCP_SRC+= Drone_ode_cost/Drone_ode_cost_ext_cost_0_fun_jac.c
-OCP_SRC+= Drone_ode_cost/Drone_ode_cost_ext_cost_0_fun_jac_hess.c
-OCP_SRC+= Drone_ode_cost/Drone_ode_cost_ext_cost_fun.c
-OCP_SRC+= Drone_ode_cost/Drone_ode_cost_ext_cost_fun_jac.c
-OCP_SRC+= Drone_ode_cost/Drone_ode_cost_ext_cost_fun_jac_hess.c
-OCP_SRC+= Drone_ode_cost/Drone_ode_cost_ext_cost_e_fun.c
-OCP_SRC+= Drone_ode_cost/Drone_ode_cost_ext_cost_e_fun_jac.c
-OCP_SRC+= Drone_ode_cost/Drone_ode_cost_ext_cost_e_fun_jac_hess.c
 
 OCP_SRC+= acados_solver_Drone_ode.c
 OCP_OBJ := $(OCP_SRC:.c=.o)
@@ -144,7 +135,7 @@ ocp_cython_c: ocp_shared_lib
 	-o acados_ocp_solver_pyx.c \
 	-I $(INCLUDE_PATH)/../interfaces/acados_template/acados_template \
 	$(INCLUDE_PATH)/../interfaces/acados_template/acados_template/acados_ocp_solver_pyx.pyx \
-	-I /home/bryansgue/Doctoral_Research/Python/MPC_UAV/c_generated_code \
+	-I /home/bryansgue/Doctorado/Python/MPC_UAV_ACADOS/c_generated_code \
 
 ocp_cython_o: ocp_cython_c
 	$(CC) $(ACADOS_FLAGS) -c -O2 \
@@ -171,7 +162,7 @@ sim_cython_c: sim_shared_lib
 	-o acados_sim_solver_pyx.c \
 	-I $(INCLUDE_PATH)/../interfaces/acados_template/acados_template \
 	$(INCLUDE_PATH)/../interfaces/acados_template/acados_template/acados_sim_solver_pyx.pyx \
-	-I /home/bryansgue/Doctoral_Research/Python/MPC_UAV/c_generated_code \
+	-I /home/bryansgue/Doctorado/Python/MPC_UAV_ACADOS/c_generated_code \
 
 sim_cython_o: sim_cython_c
 	$(CC) $(ACADOS_FLAGS) -c -O2 \
