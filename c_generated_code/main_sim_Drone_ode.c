@@ -76,12 +76,12 @@ int main()
     x_current[7] = 0.0;
 
   
-    x_current[0] = 0;
-    x_current[1] = 0;
-    x_current[2] = 0;
+    x_current[0] = 0.11127875097396596;
+    x_current[1] = 0.05726092534869607;
+    x_current[2] = 5;
     x_current[3] = 0;
-    x_current[4] = 0;
-    x_current[5] = 0;
+    x_current[4] = 0.09728077522831352;
+    x_current[5] = 0.053370097071766515;
     x_current[6] = 0;
     x_current[7] = 0;
     

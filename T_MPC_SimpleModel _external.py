@@ -21,11 +21,14 @@ from nav_msgs.msg import Odometry
 #from c_generated_code.acados_ocp_solver_pyx import AcadosOcpSolverCython
 from geometry_msgs.msg import TwistStamped
 import math
+from scipy.io import savemat
+import os
 
 # CARGA FUNCIONES DEL PROGRAMA
 from fancy_plots import plot_pose, plot_error, plot_time
 from Functions_SimpleModel import f_system_simple_model
 from Functions_SimpleModel import f_d, odometry_call_back, get_odometry_simple, send_velocity_control, pub_odometry_sim
+import P_UAV_simple
 
 def create_ocp_solver_description(x0, N_horizon, t_horizon, zp_max, zp_min, phi_max, phi_min, theta_max, theta_min, psi_max, psi_min) -> AcadosOcp:
     # create ocp object to formulate the OCP
@@ -85,7 +88,7 @@ def create_ocp_solver_description(x0, N_horizon, t_horizon, zp_max, zp_min, phi_
 def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
     # Initial Values System
     # Simulation Time
-    t_final = 30
+    t_final = 60
     # Sample time
     frec= 30
     t_s = 1/frec
@@ -115,10 +118,10 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
     num = 4
     xd = lambda t: 4 * np.sin(5*0.04*t) + 3
     yd = lambda t: 4 * np.sin(5*0.08*t)
-    zd = lambda t: 2.5 * np.sin (0.2* t) + 5  
+    zd = lambda t: 2 * np.sin(5*0.08*t) + 5
     xdp = lambda t: 4 * 5 * 0.04 * np.cos(5*0.04*t)
     ydp = lambda t: 4 * 5 * 0.08 * np.cos(5*0.08*t)
-    zdp = lambda t: 2.5 * 0.2 * np.cos(0.2 * t)
+    zdp = lambda t: 2 * 5 * 0.08 * np.cos(5*0.08*t)
 
     hxd = xd(t)
     hyd = yd(t)
@@ -135,7 +138,7 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
     xref[0,:] = hxd 
     xref[1,:] = hyd
     xref[2,:] = hzd  
-    xref[3,:] = psid 
+    xref[3,:] = 0*psid 
     xref[4,:] = 0
     xref[5,:] = 0 
     xref[6,:] = 0 
@@ -159,8 +162,10 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
     ros_rate = 30  # Tasa de ROS en Hz
     rate = rospy.Rate(ros_rate)  # Crear un objeto de la clase rospy.Rate
 
+    P_UAV_simple.main(vel_pub, vel_msg )
+
     #INICIALIZA LECTURA DE ODOMETRIA
-    for k in range(0, 100):
+    for k in range(0, 10):
         # Read Real data
         x[:, 0] = get_odometry_simple()
         # Loop_rate.sleep()
@@ -231,7 +236,7 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
         send_velocity_control(u_control[:, k], vel_pub, vel_msg)
 
         # System Evolution
-        opcion = "Sim"  # Valor que quieres evaluar
+        opcion = "Real"  # Valor que quieres evaluar
 
         if opcion == "Real":
             x[:, k+1] = get_odometry_simple()
@@ -258,6 +263,35 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
     fig2.savefig("2_error_pose.png")
     fig3 = plot_time(t_sample, delta_t , t)
     fig3.savefig("3_Time.png")
+
+    #For MODEL TESTS
+    x_data = {"states_MPC": x, "label": "x"}
+    xref_data = {"ref_MPC": xref, "label": "xref"}
+    t_data = {"t_MPC": t, "label": "time"}
+
+    # Ruta que deseas verificar
+    pwd = "/home/bryansgue/Doctoral_Research/Matlab/Graficas_Metologia"
+
+    # Verificar si la ruta no existe
+    if not os.path.exists(pwd) or not os.path.isdir(pwd):
+        print(f"La ruta {pwd} no existe. Estableciendo la ruta local como pwd.")
+        pwd = os.getcwd()  # Establece la ruta local como pwd
+
+    Test = "Real"
+
+    if Test == "MiL":
+        savemat(os.path.join(pwd, "x_MiL_MPC.mat"), x_data)
+        savemat(os.path.join(pwd, "xref_MiL_MPC.mat"), xref_data)
+        savemat(os.path.join(pwd, "t_MiL_MPC.mat"), t_data)
+    elif Test == "HiL":
+        savemat(os.path.join(pwd, "x_HiL_MPC.mat"), x_data)
+        savemat(os.path.join(pwd, "xref_HiL_MPC.mat"), xref_data)
+        savemat(os.path.join(pwd, "t_HiL_MPC.mat"), t_data)
+    elif Test == "Real":
+        savemat(os.path.join(pwd, "x_Real_MPC.mat"), x_data)
+        savemat(os.path.join(pwd, "xref_Real_MPC.mat"), xref_data)
+        savemat(os.path.join(pwd, "t_Real_MPC.mat"), t_data)
+
 
     print(f'Mean iteration time with MLP Model: {1000*np.mean(delta_t):.1f}ms -- {1/np.mean(delta_t):.0f}Hz)')
 
