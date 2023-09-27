@@ -34,106 +34,6 @@ wy_real = 0.0
 wz_real = 0.0
 
 
-def f_system_simple_model_external():
-    # Name of the system
-    model_name = 'Drone_ode'
-    # Dynamic Values of the system
-
-    chi = [0.6756,    1.0000,    0.6344,    1.0000,    0.4080,    1.0000,    1.0000,    1.0000,    0.2953,    0.5941,   -0.8109,    1.0000,    0.3984,    0.7040,    1.0000,    0.9365,    1.0000, 1.0000,    0.9752]# Position
-    
-    # set up states & controls
-    # Position
-    nx = MX.sym('nx') 
-    ny = MX.sym('ny')
-    nz = MX.sym('nz')
-    psi = MX.sym('psi')
-    ul = MX.sym('ul')
-    um = MX.sym('um')
-    un = MX.sym('un')
-    w = MX.sym('w')
-
-    # General vector of the states
-    x = vertcat(nx, ny, nz, psi, ul, um, un, w)
-
-    # Action variables
-    ul_ref = MX.sym('ul_ref')
-    um_ref = MX.sym('um_ref')
-    un_ref = MX.sym('un_ref')
-    w_ref = MX.sym('w_ref')
-
-    # General Vector Action variables
-    u = vertcat(ul_ref,um_ref,un_ref,w_ref)
-
-    # Variables to explicit function
-    nx_p = MX.sym('nx_p')
-    ny_p = MX.sym('ny_p')
-    nz_p = MX.sym('nz_p')
-    psi_p = MX.sym('psi_p')
-    ul_p = MX.sym('ul_p')
-    um_p = MX.sym('um_p')
-    un_p = MX.sym('un_p')
-    w_p = MX.sym('w_p')
-
-    # general vector X dot for implicit function
-    xdot = vertcat(nx_p,ny_p,nz_p,psi_p,ul_p,um_p,un_p,w_p)
-
-    # Ref system as a external value
-    nx_d = MX.sym('nx_d')
-    ny_d = MX.sym('ny_d')
-    nz_d = MX.sym('nz_d')
-    psi_d = MX.sym('psi_d')
-    ul_d= MX.sym('ul_d')
-    um_d= MX.sym('um_d')
-    un_d = MX.sym('un_d')
-    w_d = MX.sym('w_d')
-    
-    ul_ref_d= MX.sym('ul_ref_d')
-    um_ref_d= MX.sym('um_ref_d')
-    un_ref_d = MX.sym('un_ref_d')
-    w_ref_d = MX.sym('w_ref_d')
-    
-    p = vertcat(nx_d, ny_d, nz_d, psi_d, ul_d, um_d, un_d, w_d, ul_ref_d, um_ref_d, un_ref_d, w_ref_d)
-
-    # Rotational Matrix
-    a = 0
-    b = 0
-    J = calc_J(x, a, b)
-    M = calc_M(chi,a,b, x)
-    C = calc_C(chi,a,b, x)
-    G = calc_G()
-
-    # Crear matriz A
-    A_top = horzcat(MX.zeros(4, 4), J)
-    A_bottom = horzcat(MX.zeros(4, 4), -mtimes(inv(M), C))
-    A = vertcat(A_top, A_bottom)
-
-    # Crear matriz B
-    B_top = MX.zeros(4, 4)
-    B_bottom = inv(M)
-    B = vertcat(B_top, B_bottom)
-
-    # Crear vector aux
-    aux = vertcat(MX.zeros(4, 1), -mtimes(inv(M), G))
-
-    f_expl = MX.zeros(8, 1)
-    f_expl = A @ x + B @ u + aux
-
-    f_system = Function('system',[x, u], [f_expl])
-     # Acados Model
-    f_impl = xdot - f_expl
-
-    model = AcadosModel()
-
-    model.f_impl_expr = f_impl
-    model.f_expl_expr = f_expl
-    model.x = x
-    model.xdot = xdot
-    model.u = u
-    model.name = model_name
-    model.p = p
-
-    return model, f_system
-
 def f_system_simple_model():
     # Name of the system
     model_name = 'Drone_ode'
@@ -198,8 +98,8 @@ def f_system_simple_model():
     a = 0
     b = 0
     J = calc_J(x, a, b)
-    M = calc_M(chi,a,b, x)
-    C = calc_C(chi,a,b, x)
+    M = calc_M(chi,a,b)
+    C = calc_C(chi,a,b, w)
     G = calc_G()
 
     # Crear matriz A
@@ -295,15 +195,20 @@ def f_system_simple_model_quat():
     um_d= MX.sym('um_d')
     un_d = MX.sym('un_d')
     w_d = MX.sym('w_d')
+
+    ul_ref_d= MX.sym('ul_ref_d')
+    um_ref_d= MX.sym('um_ref_d')
+    un_ref_d = MX.sym('un_ref_d')
+    w_ref_d = MX.sym('w_ref_d')
     
-    p = vertcat(nx_d, ny_d, nz_d, qw_d, qx_d, qy_d, qz_d, ul_d, um_d, un_d, w_d)
+    p = vertcat(nx_d, ny_d, nz_d, qw_d, qx_d, qy_d, qz_d, ul_d, um_d, un_d, w_d, ul_ref_d, um_ref_d, un_ref_d, w_ref_d)
 
     # Rotational Matrix
     a = 0
     b = 0
     
-    M = calc_M(chi,a,b, x)
-    C = calc_C(chi,a,b, x)
+    M = calc_M(chi,a,b)
+    C = calc_C(chi,a,b, w)
     G = calc_G()
 
     # Crea una lista de MX con los componentes del cuaternión
@@ -324,20 +229,21 @@ def f_system_simple_model_quat():
         horzcat(r, q, -p_x, 0)
     )
 
-    # Definicion del Sistema
-    A = vertcat(
-        horzcat(MX.zeros(3, 7), J, MX.zeros(3, 1)),
-        horzcat(MX.zeros(4, 3), (1/2) * S, MX.zeros(4, 4)),
-        horzcat(MX.zeros(4, 7), -solve(M, C))
-    )
 
-    B = vertcat(
-        MX.zeros(7, 4),
-        solve(M, MX.eye(4))
-    )
+    # Crear matriz A
+    A_1 = horzcat(MX.zeros(3, 7), J, MX.zeros(3, 1))
+    A_2 = horzcat(MX.zeros(4, 3), 1/2*S, MX.zeros(4, 4))
+    A_3 = horzcat(MX.zeros(4, 7), -mtimes(inv(M), C))
+   
+    A = vertcat(A_1, A_2, A_3)
+
+    # Crear matriz B
+    B_top = MX.zeros(7, 4)
+    B_bottom = inv(M)
+    B = vertcat(B_top, B_bottom)
 
     f_expl = MX.zeros(11, 1)
-    f_expl = A @ x + B @ u
+    f_expl = A @ x + B @ u 
 
     f_system = Function('system',[x, u], [f_expl])
      # Acados Model
@@ -351,7 +257,7 @@ def f_system_simple_model_quat():
     model.xdot = xdot
     model.u = u
     model.name = model_name
-    #model.p = p
+    model.p = p
 
     return model, f_system
 
@@ -401,6 +307,31 @@ def get_odometry_simple():
 
     return x_state
 
+def get_odometry_simple_quat():
+
+    quaternion = [qx_real, qy_real, qz_real, qw_real ] # cuaternión debe estar en la convención "xyzw",
+    r_quat = R.from_quat(quaternion)
+    euler =  r_quat.as_euler('zyx', degrees = False)
+    psi = euler[0]
+
+    J = np.zeros((3, 3))
+    J[0, 0] = np.cos(psi)
+    J[0, 1] = -np.sin(psi)
+    J[1, 0] = np.sin(psi)
+    J[1, 1] = np.cos(psi)
+    J[2, 2] = 1
+
+    J_inv = np.linalg.inv(J)
+    v = np.dot(J_inv, [vx_real, vy_real, vz_real])
+ 
+    ul_real = v[0]
+    um_real = v[1]
+    un_real = v[2]
+
+    x_state = [x_real,y_real,z_real,qw_real,qx_real,qy_real,qz_real,ul_real,um_real,un_real, wz_real]
+
+    return x_state
+
 def send_velocity_control(u, vel_pub, vel_msg):
     # velocity message
 
@@ -442,8 +373,36 @@ def pub_odometry_sim(state_vector, odom_sim_pub, odom_sim_msg):
     # Publish the message
     odom_sim_pub.publish(odom_sim_msg)
 
-def calc_M(chi, a, b, x):
-    w = x[7]
+def pub_odometry_sim_quat(state_vector, odom_sim_pub, odom_sim_msg):
+    
+    quaternion = [state_vector[3], state_vector[4], state_vector[5], state_vector[6]]
+
+    u = [state_vector[7],state_vector[8],state_vector[9]]
+    
+    v = FLUtoENU(u, quaternion)
+
+    odom_sim_msg.header.frame_id = "odo"
+    odom_sim_msg.header.stamp = rospy.Time.now()
+    odom_sim_msg.pose.pose.position.x = state_vector[0]
+    odom_sim_msg.pose.pose.position.y = state_vector[1]
+    odom_sim_msg.pose.pose.position.z = state_vector[2]
+    odom_sim_msg.pose.pose.orientation.w = state_vector[3]
+    odom_sim_msg.pose.pose.orientation.x = state_vector[4]
+    odom_sim_msg.pose.pose.orientation.y = state_vector[5]
+    odom_sim_msg.pose.pose.orientation.z = state_vector[6]
+    odom_sim_msg.twist.twist.linear.x = v[0]
+    odom_sim_msg.twist.twist.linear.y = v[1]
+    odom_sim_msg.twist.twist.linear.z = v[2]
+    odom_sim_msg.twist.twist.angular.x = 0
+    odom_sim_msg.twist.twist.angular.y = 0
+    odom_sim_msg.twist.twist.angular.z = state_vector[10]
+
+    
+    # Publish the message
+    odom_sim_pub.publish(odom_sim_msg)    
+
+def calc_M(chi, a, b):
+    
 
     M = MX.zeros(4, 4)
     M[0,0] = chi[0]
@@ -465,9 +424,8 @@ def calc_M(chi, a, b, x):
     
     return M
 
-def calc_C(chi, a, b, x):
-    w = x[7]
-
+def calc_C(chi, a, b, w):
+    
     C = MX.zeros(4, 4)
     C[0,0] = chi[9]
     C[0,1] = w*chi[10]
@@ -556,9 +514,9 @@ def QuatToRot(quat):
     q_hat[2, 0] = -q_normalized[2]
     q_hat[2, 1] = q_normalized[1]
 
-    R = MX.eye(3) + 2 * q_hat @ q_hat + 2 * q_normalized[0] * q_hat
+    Rot = MX.eye(3) + 2 * q_hat @ q_hat + 2 * q_normalized[0] * q_hat
 
-    return R
+    return Rot
 
 
 

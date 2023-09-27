@@ -162,7 +162,7 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
     ros_rate = 30  # Tasa de ROS en Hz
     rate = rospy.Rate(ros_rate)  # Crear un objeto de la clase rospy.Rate
 
-    P_UAV_simple.main(vel_pub, vel_msg )
+    #P_UAV_simple.main(vel_pub, vel_msg )
 
     #INICIALIZA LECTURA DE ODOMETRIA
     for k in range(0, 10):
@@ -236,7 +236,7 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
         send_velocity_control(u_control[:, k], vel_pub, vel_msg)
 
         # System Evolution
-        opcion = "Real"  # Valor que quieres evaluar
+        opcion = "Sim"  # Valor que quieres evaluar
 
         if opcion == "Real":
             x[:, k+1] = get_odometry_simple()

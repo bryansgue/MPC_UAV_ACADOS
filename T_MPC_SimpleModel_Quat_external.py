@@ -14,7 +14,7 @@ from casadi import sin
 from casadi import solve
 from casadi import inv
 from casadi import mtimes
-from fancy_plots import fancy_plots_2, fancy_plots_1
+
 import rospy
 from scipy.spatial.transform import Rotation as R
 from nav_msgs.msg import Odometry
@@ -23,115 +23,29 @@ from geometry_msgs.msg import TwistStamped
 import math
 
 # CARGA FUNCIONES DEL PROGRAMA
-from Functions_SimpleModel import f_system_simple_model_quat, f_d, euler_to_quaternion, FLUtoENU
+from fancy_plots import plot_pose, plot_error, plot_time
+from Functions_SimpleModel import f_system_simple_model_quat
+from Functions_SimpleModel import f_d, odometry_call_back, get_odometry_simple_quat, send_velocity_control, pub_odometry_sim_quat
+import P_UAV_simple
 
 # Global variables Odometry Drone
-x_real = 0.0
-y_real = 0.0
-z_real = 0.0
+x_real = 1
+y_real = 1
+z_real = 5
 vx_real = 0.0
 vy_real = 0.0
 vz_real = 0.0
-qw_real = 1.0
+qw_real = 1
 qx_real = 0
 qy_real = 0.0
-qz_real = 0.0
+qz_real = 0
 wx_real = 0.0
 wy_real = 0.0
 wz_real = 0.0
 
 
-def odometry_call_back(odom_msg):
-    global x_real, y_real, z_real, qx_real, qy_real, qz_real, qw_real, vx_real, vy_real, vz_real, wx_real, wy_real, wz_real
-    # Read desired linear velocities from node
-    x_real = odom_msg.pose.pose.position.x 
-    y_real = odom_msg.pose.pose.position.y
-    z_real = odom_msg.pose.pose.position.z
-    vx_real = odom_msg.twist.twist.linear.x
-    vy_real = odom_msg.twist.twist.linear.y
-    vz_real = odom_msg.twist.twist.linear.z
 
-    qx_real = odom_msg.pose.pose.orientation.x
-    qy_real = odom_msg.pose.pose.orientation.y
-    qz_real = odom_msg.pose.pose.orientation.z
-    qw_real = odom_msg.pose.pose.orientation.w
 
-    wx_real = odom_msg.twist.twist.angular.x
-    wy_real = odom_msg.twist.twist.angular.y
-    wz_real = odom_msg.twist.twist.angular.z
-    return None
-
-def get_odometry_simple_quat():
-
-    quaternion = [qx_real, qy_real, qz_real, qw_real ] # cuaternión debe estar en la convención "xyzw",
-    r_quat = R.from_quat(quaternion)
-    euler =  r_quat.as_euler('zyx', degrees = False)
-    psi = euler[0]
-
-    J = np.zeros((3, 3))
-    J[0, 0] = np.cos(psi)
-    J[0, 1] = -np.sin(psi)
-    J[1, 0] = np.sin(psi)
-    J[1, 1] = np.cos(psi)
-    J[2, 2] = 1
-
-    J_inv = np.linalg.inv(J)
-    v = np.dot(J_inv, [vx_real, vy_real, vz_real])
- 
-    ul_real = v[0]
-    um_real = v[1]
-    un_real = v[2]
-
-    x_state = [x_real,y_real,z_real,qw_real,qx_real,qy_real,qz_real,ul_real,um_real,un_real, wz_real]
-
-    return x_state
-
-def send_velocity_control(u, vel_pub, vel_msg):
-    # velocity message
-
-    vel_msg.header.frame_id = "base_link"
-    vel_msg.header.stamp = rospy.Time.now()
-    vel_msg.twist.linear.x = u[0]
-    vel_msg.twist.linear.y = u[1]
-    vel_msg.twist.linear.z = u[2]
-    vel_msg.twist.angular.x = 0
-    vel_msg.twist.angular.y = 0
-    vel_msg.twist.angular.z = u[3]
-
-    # Publish control values
-    vel_pub.publish(vel_msg)
-
-def send_state_to_topic_quat(state_vector):
-    publisher = rospy.Publisher('/dji_sdk/odometry', Odometry, queue_size=10)
-    
-    # Create an Odometry message
-    odometry_msg = Odometry()
-
-    quaternion = [state_vector[3], state_vector[4], state_vector[5], state_vector[6]]
-
-    u = [state_vector[7],state_vector[8],state_vector[9]]
-    
-    v = FLUtoENU(u, quaternion)
-
-    odometry_msg.header.frame_id = "odo"
-    odometry_msg.header.stamp = rospy.Time.now()
-    odometry_msg.pose.pose.position.x = state_vector[0]
-    odometry_msg.pose.pose.position.y = state_vector[1]
-    odometry_msg.pose.pose.position.z = state_vector[2]
-    odometry_msg.pose.pose.orientation.w = state_vector[3]
-    odometry_msg.pose.pose.orientation.x = state_vector[4]
-    odometry_msg.pose.pose.orientation.y = state_vector[5]
-    odometry_msg.pose.pose.orientation.z = state_vector[6]
-    odometry_msg.twist.twist.linear.x = v[0]
-    odometry_msg.twist.twist.linear.y = v[1]
-    odometry_msg.twist.twist.linear.z = v[2]
-    odometry_msg.twist.twist.angular.x = 0
-    odometry_msg.twist.twist.angular.y = 0
-    odometry_msg.twist.twist.angular.z = state_vector[10]
-
-    
-    # Publish the message
-    publisher.publish(odometry_msg)
 
 
 def create_ocp_solver_description(x0, N_horizon, t_horizon, zp_max, zp_min, phi_max, phi_min, theta_max, theta_min, psi_max, psi_min) -> AcadosOcp:
@@ -154,22 +68,25 @@ def create_ocp_solver_description(x0, N_horizon, t_horizon, zp_max, zp_min, phi_
     Q_mat[2, 2] = 1.1
 
     R_mat = MX.zeros(4, 4)
-    R_mat[0, 0] = 1.3*(1/2)
-    R_mat[1, 1] = 1.3*(1/2)
-    R_mat[2, 2] = 1.3*(1/2)
-    R_mat[3, 3] = 1.3*(1/2)
+    R_mat[0, 0] = 1
+    R_mat[1, 1] = 1
+    R_mat[2, 2] = 1
+    R_mat[3, 3] = 1
     
-    ocp.parameter_values = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+    ocp.parameter_values = np.zeros(ny)
 
     ocp.cost.cost_type = "EXTERNAL"
+    ocp.cost.cost_type_e = "EXTERNAL"
 
     error_pose = ocp.p[0:3] - model.x[0:3]
     ocp.model.cost_expr_ext_cost = error_pose.T @ Q_mat @error_pose  + model.u.T @ R_mat @ model.u 
+    ocp.model.cost_expr_ext_cost_e = error_pose.T @ Q_mat @ error_pose
+
 
     # set constraints
-    ocp.constraints.lbu = np.array([-2, -2, -2])
-    ocp.constraints.ubu = np.array([2, 2, 2])
-    ocp.constraints.idxbu = np.array([0, 1, 2])
+    #ocp.constraints.lbu = np.array([-2, -2, -2])
+    #ocp.constraints.ubu = np.array([2, 2, 2])
+    #ocp.constraints.idxbu = np.array([0, 1, 2])
 
     ocp.constraints.x0 = x0
 
@@ -185,7 +102,7 @@ def create_ocp_solver_description(x0, N_horizon, t_horizon, zp_max, zp_min, phi_
 
     return ocp
 
-def main(vel_pub, vel_msg):
+def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
     # Initial Values System
     # Simulation Time
     t_final = 60
@@ -213,6 +130,7 @@ def main(vel_pub, vel_msg):
 
     # Read Real data
     x[:, 0] = get_odometry_simple_quat()
+    x[:, 0] = [1,1,0,1,0,0,0,0,0,0,0]
 
     #TAREA DESEADA
     num = 4
@@ -235,10 +153,10 @@ def main(vel_pub, vel_msg):
 
     # Reference Signal of the system
     xref = np.zeros((15, t.shape[0]), dtype = np.double)
-    xref[0,:] = hxd 
-    xref[1,:] = hyd
-    xref[2,:] = hzd  
-    xref[3,:] = psid 
+    xref[0,:] = 5
+    xref[1,:] = 5
+    xref[2,:] = 5  
+    xref[3,:] = 1 
     xref[4,:] = 0
     xref[5,:] = 0 
     xref[6,:] = 0 
@@ -273,6 +191,9 @@ def main(vel_pub, vel_msg):
     nx = ocp.model.x.size()[0]
     nu = ocp.model.u.size()[0]
 
+    simX = np.ndarray((nx, N_prediction+1))
+    simU = np.ndarray((nu, N_prediction))
+
     # Initial States Acados
     for stage in range(N_prediction + 1):
         acados_ocp_solver.set(stage, "x", 0.0 * np.ones(x[:,0].shape))
@@ -298,9 +219,24 @@ def main(vel_pub, vel_msg):
         acados_ocp_solver.set(0, "lbx", x[:,k])
         acados_ocp_solver.set(0, "ubx", x[:,k])
 
+        # SET REFERENCES
         for j in range(N_prediction):
-            acados_ocp_solver.set(j, "p", np.array([xref[0,k+j], xref[1,k+j], xref[2,k+j], xref[3,k+j], xref[4,k+j], xref[5,k+j], xref[6,k+j], xref[7,k+j], xref[8,k+j],  xref[9,k+j],  xref[10,k+j]]))
-          
+            yref = xref[:,k+j]
+            acados_ocp_solver.set(j, "p", yref)
+
+        yref_N = xref[:,k+N_prediction]
+        acados_ocp_solver.set(N_prediction, "p", yref_N)
+
+        # get solution
+        for i in range(N_prediction):
+            simX[:,i] = acados_ocp_solver.get(i, "x")
+            simU[:,i] = acados_ocp_solver.get(i, "u")
+        simX[:,N_prediction] = acados_ocp_solver.get(N_prediction, "x")
+
+        print(simX[:,10])
+
+        u_control[:, k] = simU[:,0]
+
         # Get Computational Time
         status = acados_ocp_solver.solve()
 
@@ -308,7 +244,9 @@ def main(vel_pub, vel_msg):
 
         # Get Control Signal
         u_control[:, k] = acados_ocp_solver.get(0, "u")
-        u_control[:, k] = [1 ,0,0,0.0]
+
+        print(u_control[:, k])
+        #u_control[:, k] = [0.1, 0.0, 0.0, 0]
         send_velocity_control(u_control[:, k], vel_pub, vel_msg)
 
         # System Evolution
@@ -318,7 +256,7 @@ def main(vel_pub, vel_msg):
             x[:, k+1] = get_odometry_simple_quat()
         elif opcion == "Sim":
             x[:, k+1] = f_d(x[:, k], u_control[:, k], t_s, f)
-            send_state_to_topic_quat(x[:, k+1])
+            pub_odometry_sim_quat(x[:, k+1], odom_sim_pub, odom_sim_msg)
         else:
             print("Opción no válida")
         
@@ -443,14 +381,18 @@ if __name__ == '__main__':
         # Node Initialization
         rospy.init_node("Acados_controller",disable_signals=True, anonymous=True)
 
-        odometry_topic = "/dji_sdk/odometry"
-        velocity_subscriber = rospy.Subscriber(odometry_topic, Odometry, odometry_call_back)
+        # SUCRIBER
+        velocity_subscriber = rospy.Subscriber("/dji_sdk/odometry", Odometry, odometry_call_back)
         
-        velocity_topic = "/m100/velocityControl"
+        # PUBLISHER
         velocity_message = TwistStamped()
-        velocity_publisher = rospy.Publisher(velocity_topic, TwistStamped, queue_size=10)
+        velocity_publisher = rospy.Publisher("/m100/velocityControl", TwistStamped, queue_size=10)
 
-        main(velocity_publisher, velocity_message)
+        odometry_sim_msg = Odometry()
+        odom_sim_pub = rospy.Publisher('/dji_sdk/odometry', Odometry, queue_size=10)
+    
+
+        main(velocity_publisher, velocity_message, odom_sim_pub, odometry_sim_msg)
     except(rospy.ROSInterruptException, KeyboardInterrupt):
         print("\nError System")
         send_velocity_control([0, 0, 0, 0], velocity_publisher, velocity_message)
