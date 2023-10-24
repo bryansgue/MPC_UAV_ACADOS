@@ -18,6 +18,7 @@ from casadi import mtimes
 import rospy
 from scipy.spatial.transform import Rotation as R
 from nav_msgs.msg import Odometry
+from std_msgs.msg import Float64MultiArray
 #from c_generated_code.acados_ocp_solver_pyx import AcadosOcpSolverCython
 from geometry_msgs.msg import TwistStamped
 import math
@@ -29,6 +30,33 @@ from fancy_plots import plot_pose, plot_error, plot_time
 from Functions_SimpleModel import f_system_simple_model
 from Functions_SimpleModel import f_d, odometry_call_back, get_odometry_simple, send_velocity_control, pub_odometry_sim
 import P_UAV_simple
+
+
+def publish_matrix(matrix_data, topic_name='/nombre_del_topico'):
+    """
+    Publica una matriz en un tópico ROS.
+
+    Args:
+        matrix_data (numpy.ndarray): La matriz a publicar.
+        topic_name (str): El nombre del tópico ROS en el que se publicará la matriz.
+    """
+    # Inicializa el nodo ROS si aún no está inicializado
+   
+
+    # Crea una instancia del mensaje Float64MultiArray
+    matrix_msg = Float64MultiArray()
+
+    # Convierte la matriz NumPy en una lista plana
+    matrix_data_flat = matrix_data.flatten().tolist()
+
+    # Asigna los datos de la matriz al mensaje
+    matrix_msg.data = matrix_data_flat
+
+    # Crea un publicador para el tópico deseado
+    matrix_publisher = rospy.Publisher(topic_name, Float64MultiArray, queue_size=10)
+
+    # Publica el mensaje en el tópico
+    matrix_publisher.publish(matrix_msg)
 
 def create_ocp_solver_description(x0, N_horizon, t_horizon, zp_max, zp_min, phi_max, phi_min, theta_max, theta_min, psi_max, psi_min) -> AcadosOcp:
     # create ocp object to formulate the OCP
@@ -93,7 +121,7 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
     frec= 30
     t_s = 1/frec
     # Prediction Time
-    N_horizont = 30
+    N_horizont = 1*frec
     t_prediction = N_horizont/frec
 
     # Nodes inside MPC
@@ -162,7 +190,7 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
     ros_rate = 30  # Tasa de ROS en Hz
     rate = rospy.Rate(ros_rate)  # Crear un objeto de la clase rospy.Rate
 
-    #P_UAV_simple.main(vel_pub, vel_msg )
+    P_UAV_simple.main(vel_pub, vel_msg )
 
     #INICIALIZA LECTURA DE ODOMETRIA
     for k in range(0, 10):
@@ -231,12 +259,15 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
             simU[:,i] = acados_ocp_solver.get(i, "u")
         simX[:,N_prediction] = acados_ocp_solver.get(N_prediction, "x")
 
+        publish_matrix(simX[0:3, 0:N_prediction], '/Prediction')
+        print(simX[0:3, 0:N_prediction].shape)
+
         u_control[:, k] = simU[:,0]
         #u_control[:, k] = [0.0,0.0,0,0.5]
         send_velocity_control(u_control[:, k], vel_pub, vel_msg)
 
         # System Evolution
-        opcion = "Sim"  # Valor que quieres evaluar
+        opcion = "Real"  # Valor que quieres evaluar
 
         if opcion == "Real":
             x[:, k+1] = get_odometry_simple()

@@ -85,7 +85,7 @@ def create_ocp_solver_description(x0, N_horizon, t_horizon, zp_max, zp_min, phi_
 
     # set constraints
     #ocp.constraints.lbu = np.array([-2, -2, -2])
-    #ocp.constraints.ubu = np.array([2, 2, 2])
+    #ocp.constraints.ubu = np.array([2, 2, 2])z
     #ocp.constraints.idxbu = np.array([0, 1, 2])
 
     ocp.constraints.x0 = x0
