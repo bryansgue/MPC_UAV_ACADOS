@@ -35,7 +35,7 @@ def main(vel_pub, vel_msg ):
     psidp = np.zeros(samples)
 
     #GANANCIAS DEL CONTROLADOR
-    K1 = np.diag([1,1,1,1])  
+    K1 = np.diag([1,1,1,0])  
     K2 = np.diag([1,1,1,1])  
     K3 = np.diag([1,1,1,1])  
     K4 = np.diag([1,1,1,1])  
@@ -89,6 +89,9 @@ def main(vel_pub, vel_msg ):
     for k in range(samples-1):
         #INICIO DEL TIEMPO DE BUCLE
         tic = time.time()
+
+        if x[2, k] > 3:
+            K1 = np.diag([1,1,1,1])  
 
         # MODELO CINEMATICO Y DINAMICO
         chi = [0.6756,    1.0000,    0.6344,    1.0000,    0.4080,    1.0000,    1.0000,    1.0000,    0.2953,    0.5941,   -0.8109,    1.0000,    0.3984,    0.7040,    1.0000,    0.9365,    1.0000, 1.0000,    0.9752]# Position
