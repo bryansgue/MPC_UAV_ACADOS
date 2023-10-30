@@ -1,7 +1,7 @@
 {
     "acados_include_path": "/home/bryansgue/acados/include",
     "acados_lib_path": "/home/bryansgue/acados/lib",
-    "code_export_directory": "/home/bryansgue/Doctoral_Research/Python/MPC_UAV/c_generated_code",
+    "code_export_directory": "/home/bryansgue/Doctoral_Research/Python/MPC_UAV_ACADOS/c_generated_code",
     "constraints": {
         "C": [],
         "C_e": [],
@@ -11,7 +11,8 @@
         "idxbu": [
             0,
             1,
-            2
+            2,
+            3
         ],
         "idxbx": [],
         "idxbx_0": [
@@ -45,20 +46,21 @@
         "idxsphi": [],
         "idxsphi_e": [],
         "lbu": [
-            -2,
-            -2,
-            -2
+            -3.0,
+            -3.0,
+            -3.0,
+            -0.05
         ],
         "lbx": [],
         "lbx_0": [
-            -0.012351990688564055,
-            -0.31367325780212957,
-            4.999794960021973,
-            8.693578864438223e-05,
-            -0.010904424797141356,
-            -0.23585142853305843,
-            -5.040164614911191e-05,
-            8.059132960624993e-05
+            0.0,
+            0.0,
+            5.023495674133301,
+            0.004720957240282431,
+            -3.250230452133285e-08,
+            -2.448713095792256e-07,
+            0.008426999673247337,
+            -0.0007638107053935528
         ],
         "lbx_e": [],
         "lg": [],
@@ -77,20 +79,21 @@
         "lsphi": [],
         "lsphi_e": [],
         "ubu": [
-            2,
-            2,
-            2
+            3.0,
+            3.0,
+            3.0,
+            0.05
         ],
         "ubx": [],
         "ubx_0": [
-            -0.012351990688564055,
-            -0.31367325780212957,
-            4.999794960021973,
-            8.693578864438223e-05,
-            -0.010904424797141356,
-            -0.23585142853305843,
-            -5.040164614911191e-05,
-            8.059132960624993e-05
+            0.0,
+            0.0,
+            5.023495674133301,
+            0.004720957240282431,
+            -3.250230452133285e-08,
+            -2.448713095792256e-07,
+            0.008426999673247337,
+            -0.0007638107053935528
         ],
         "ubx_e": [],
         "ug": [],
@@ -144,7 +147,7 @@
     ],
     "dims": {
         "N": 32,
-        "nbu": 3,
+        "nbu": 4,
         "nbx": 0,
         "nbx_0": 8,
         "nbx_e": 0,
@@ -189,12 +192,12 @@
         "cost_conl_custom_outer_hess": null,
         "cost_conl_custom_outer_hess_0": null,
         "cost_conl_custom_outer_hess_e": null,
-        "cost_expr_ext_cost": "@1=(vertcat(nx_d, ny_d, nz_d, psi_d, ul_d, um_d, un_d, w_d, ul_ref_d, um_ref_d, un_ref_d, w_ref_d)[:4]-vertcat(nx, ny, nz, psi, ul, um, un, w)[:4]), @2=vertcat(ul_ref, um_ref, un_ref, w_ref), (mac(mac(@1',((((zeros(4x4)[0] = 1.1)[5] = 1.1)[10] = 1.1)[15] = 1),zeros(1x4)),@1,0)+mac(mac(@2',((((zeros(4x4)[0] = 0.65)[5] = 0.65)[10] = 0.65)[15] = 0.65),zeros(1x4)),@2,0))",
-        "cost_expr_ext_cost_0": "@1=(vertcat(nx_d, ny_d, nz_d, psi_d, ul_d, um_d, un_d, w_d, ul_ref_d, um_ref_d, un_ref_d, w_ref_d)[:4]-vertcat(nx, ny, nz, psi, ul, um, un, w)[:4]), @2=vertcat(ul_ref, um_ref, un_ref, w_ref), (mac(mac(@1',((((zeros(4x4)[0] = 1.1)[5] = 1.1)[10] = 1.1)[15] = 1),zeros(1x4)),@1,0)+mac(mac(@2',((((zeros(4x4)[0] = 0.65)[5] = 0.65)[10] = 0.65)[15] = 0.65),zeros(1x4)),@2,0))",
+        "cost_expr_ext_cost": "@1=(vertcat(nx_d, ny_d, nz_d, psi_d, ul_d, um_d, un_d, w_d, ul_ref_d, um_ref_d, un_ref_d, w_ref_d)[:4]-vertcat(nx, ny, nz, psi, ul, um, un, w)[:4]), @2=vertcat(ul_ref, um_ref, un_ref, w_ref), (mac(mac(@1',((((zeros(4x4)[0] = 3)[5] = 3)[10] = 3)[15] = 0.5),zeros(1x4)),@1,0)+mac(mac(@2',((((zeros(4x4)[0] = 0.5)[5] = 0.5)[10] = 0.5)[15] = 1.5),zeros(1x4)),@2,0))",
+        "cost_expr_ext_cost_0": "@1=(vertcat(nx_d, ny_d, nz_d, psi_d, ul_d, um_d, un_d, w_d, ul_ref_d, um_ref_d, un_ref_d, w_ref_d)[:4]-vertcat(nx, ny, nz, psi, ul, um, un, w)[:4]), @2=vertcat(ul_ref, um_ref, un_ref, w_ref), (mac(mac(@1',((((zeros(4x4)[0] = 3)[5] = 3)[10] = 3)[15] = 0.5),zeros(1x4)),@1,0)+mac(mac(@2',((((zeros(4x4)[0] = 0.5)[5] = 0.5)[10] = 0.5)[15] = 1.5),zeros(1x4)),@2,0))",
         "cost_expr_ext_cost_custom_hess": null,
         "cost_expr_ext_cost_custom_hess_0": null,
         "cost_expr_ext_cost_custom_hess_e": null,
-        "cost_expr_ext_cost_e": "@1=(vertcat(nx_d, ny_d, nz_d, psi_d, ul_d, um_d, un_d, w_d, ul_ref_d, um_ref_d, un_ref_d, w_ref_d)[:4]-vertcat(nx, ny, nz, psi, ul, um, un, w)[:4]), mac(mac(@1',((((zeros(4x4)[0] = 1.1)[5] = 1.1)[10] = 1.1)[15] = 1),zeros(1x4)),@1,0)",
+        "cost_expr_ext_cost_e": "@1=(vertcat(nx_d, ny_d, nz_d, psi_d, ul_d, um_d, un_d, w_d, ul_ref_d, um_ref_d, un_ref_d, w_ref_d)[:4]-vertcat(nx, ny, nz, psi, ul, um, un, w)[:4]), mac(mac(@1',((((zeros(4x4)[0] = 3)[5] = 3)[10] = 3)[15] = 0.5),zeros(1x4)),@1,0)",
         "cost_psi_expr": null,
         "cost_psi_expr_0": null,
         "cost_psi_expr_e": null,

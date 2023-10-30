@@ -73,16 +73,16 @@ def create_ocp_solver_description(x0, N_horizon, t_horizon, zp_max, zp_min, phi_
     ocp.dims.N = N_horizon
 
     Q_mat = MX.zeros(4, 4)
-    Q_mat[0, 0] = 1.1
-    Q_mat[1, 1] = 1.1
-    Q_mat[2, 2] = 1.1
-    Q_mat[3, 3] = 1
+    Q_mat[0, 0] = 3
+    Q_mat[1, 1] = 3
+    Q_mat[2, 2] = 3
+    Q_mat[3, 3] = 0.5
 
     R_mat = MX.zeros(4, 4)
-    R_mat[0, 0] = 1.3*(1/2)
-    R_mat[1, 1] = 1.3*(1/2)
-    R_mat[2, 2] = 1.3*(1/2)
-    R_mat[3, 3] = 1.3*(1/2)
+    R_mat[0, 0] = 1.5*(1/3)
+    R_mat[1, 1] = 1.5*(1/3)
+    R_mat[2, 2] = 1.5*(1/3)
+    R_mat[3, 3] = 3*(1/2)
     
     ocp.parameter_values = np.zeros(ny)
 
@@ -94,9 +94,9 @@ def create_ocp_solver_description(x0, N_horizon, t_horizon, zp_max, zp_min, phi_
     ocp.model.cost_expr_ext_cost_e = error_pose.T @ Q_mat @ error_pose
 
     # set constraints
-    ocp.constraints.lbu = np.array([-2, -2, -2])
-    ocp.constraints.ubu = np.array([2, 2, 2])
-    ocp.constraints.idxbu = np.array([0, 1, 2])
+    ocp.constraints.lbu = np.array([-3, -3, -3, -0.05])
+    ocp.constraints.ubu = np.array([3, 3, 3, 0.05])
+    ocp.constraints.idxbu = np.array([0, 1, 2, 3])
 
     ocp.constraints.x0 = x0
 
@@ -121,7 +121,7 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
     frec= 30
     t_s = 1/frec
     # Prediction Time
-    N_horizont = 1*frec
+    N_horizont = frec
     t_prediction = N_horizont/frec
 
     # Nodes inside MPC
@@ -143,13 +143,13 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
     x[:, 0] = get_odometry_simple()
 
     #TAREA DESEADA
-    num = 4
-    xd = lambda t: 4 * np.sin(5*0.04*t) + 3
-    yd = lambda t: 4 * np.sin(5*0.08*t)
-    zd = lambda t: 2 * np.sin(5*0.08*t) + 5
-    xdp = lambda t: 4 * 5 * 0.04 * np.cos(5*0.04*t)
-    ydp = lambda t: 4 * 5 * 0.08 * np.cos(5*0.08*t)
-    zdp = lambda t: 2 * 5 * 0.08 * np.cos(5*0.08*t)
+    value = 8
+    xd = lambda t: 4 * np.sin(value*0.04*t) + 3
+    yd = lambda t: 4 * np.sin(value*0.08*t)
+    zd = lambda t: 2 * np.sin(value*0.08*t) + 6
+    xdp = lambda t: 4 * value * 0.04 * np.cos(value*0.04*t)
+    ydp = lambda t: 4 * value * 0.08 * np.cos(value*0.08*t)
+    zdp = lambda t: 2 * value * 0.08 * np.cos(value*0.08*t)
 
     hxd = xd(t)
     hyd = yd(t)
@@ -162,15 +162,15 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
     psidp = np.gradient(psid, t_s)
 
     # Reference Signal of the system
-    xref = np.zeros((12, t.shape[0]), dtype = np.double)
-    xref[0,:] = hxd 
-    xref[1,:] = hyd
-    xref[2,:] = hzd  
-    xref[3,:] = 0*psid 
-    xref[4,:] = 0
-    xref[5,:] = 0 
-    xref[6,:] = 0 
-    xref[7,:] = 0 
+    ref = np.zeros((12, t.shape[0]), dtype = np.double)
+    ref[0,:] = hxd 
+    ref[1,:] = hyd
+    ref[2,:] = hzd  
+    ref[3,:] = 0*psid 
+    ref[4,:] = 0
+    ref[5,:] = 0 
+    ref[6,:] = 0 
+    ref[7,:] = 0 
     # Initial Control values
     u_control = np.zeros((4, t.shape[0]-N_prediction), dtype = np.double)
     #u_control = np.zeros((4, t.shape[0]), dtype = np.double)
@@ -233,7 +233,7 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
 
     for k in range(0, t.shape[0]-N_prediction):
               
-        Error[:,k] = xref[0:3, k] - x[0:3, k]
+        Error[:,k] = ref[0:3, k] - x[0:3, k]
 
         # Control Law Section
         acados_ocp_solver.set(0, "lbx", x[:,k])
@@ -241,10 +241,10 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
 
         # SET REFERENCES
         for j in range(N_prediction):
-            yref = xref[:,k+j]
+            yref = ref[:,k+j]
             acados_ocp_solver.set(j, "p", yref)
 
-        yref_N = xref[:,k+N_prediction]
+        yref_N = ref[:,k+N_prediction]
         acados_ocp_solver.set(N_prediction, "p", yref_N)
         
         
@@ -288,7 +288,7 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
         
     send_velocity_control([0, 0, 0, 0], vel_pub, vel_msg)
 
-    fig1 = plot_pose(x, xref, t)
+    fig1 = plot_pose(x, ref, t)
     fig1.savefig("1_pose.png")
     fig2 = plot_error(Error, t)
     fig2.savefig("2_error_pose.png")
@@ -296,9 +296,9 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
     fig3.savefig("3_Time.png")
 
     #For MODEL TESTS
-    x_data = {"states_MPC": x, "label": "x"}
-    xref_data = {"ref_MPC": xref, "label": "xref"}
-    t_data = {"t_MPC": t, "label": "time"}
+    #x_data = {"states_MPC": x, "label": "x"}
+    #ref_data = {"ref_MPC": ref, "label": "ref"}
+    #t_data = {"t_MPC": t, "label": "time"}
 
     # Ruta que deseas verificar
     pwd = "/home/bryansgue/Doctoral_Research/Matlab/Graficas_Metologia"
@@ -311,17 +311,19 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
     Test = "Real"
 
     if Test == "MiL":
-        savemat(os.path.join(pwd, "x_MiL_MPC.mat"), x_data)
-        savemat(os.path.join(pwd, "xref_MiL_MPC.mat"), xref_data)
-        savemat(os.path.join(pwd, "t_MiL_MPC.mat"), t_data)
+        name_file = "MPC_MiL.mat"
     elif Test == "HiL":
-        savemat(os.path.join(pwd, "x_HiL_MPC.mat"), x_data)
-        savemat(os.path.join(pwd, "xref_HiL_MPC.mat"), xref_data)
-        savemat(os.path.join(pwd, "t_HiL_MPC.mat"), t_data)
+        name_file = "MPC_HiL.mat"
     elif Test == "Real":
-        savemat(os.path.join(pwd, "x_Real_MPC.mat"), x_data)
-        savemat(os.path.join(pwd, "xref_Real_MPC.mat"), xref_data)
-        savemat(os.path.join(pwd, "t_Real_MPC.mat"), t_data)
+        name_file = "MPC_Real.mat"
+    
+    save = True
+    if save==True:
+        savemat(os.path.join(pwd, name_file), {
+                'x_states': x,
+                'ref': ref,
+                'u_input': u_control,
+                't_time': t })
 
 
     print(f'Mean iteration time with MLP Model: {1000*np.mean(delta_t):.1f}ms -- {1/np.mean(delta_t):.0f}Hz)')
