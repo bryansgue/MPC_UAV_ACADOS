@@ -308,7 +308,7 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
         print(f"La ruta {pwd} no existe. Estableciendo la ruta local como pwd.")
         pwd = os.getcwd()  # Establece la ruta local como pwd
 
-    Test = "Real"
+    Test = "MiL"
 
     if Test == "MiL":
         name_file = "MPC_MiL.mat"

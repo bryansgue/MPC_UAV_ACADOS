@@ -44,10 +44,6 @@ wy_real = 0.0
 wz_real = 0.0
 
 
-
-
-
-
 def create_ocp_solver_description(x0, N_horizon, t_horizon, zp_max, zp_min, phi_max, phi_min, theta_max, theta_min, psi_max, psi_min) -> AcadosOcp:
     # create ocp object to formulate the OCP
     ocp = AcadosOcp()
@@ -130,7 +126,7 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
 
     # Read Real data
     x[:, 0] = get_odometry_simple_quat()
-    x[:, 0] = [1,1,0,1,0,0,0,0,0,0,0]
+    x[:, 0] = [1,1,5,1,0,0,0.5,0,0,0,0]
 
     #TAREA DESEADA
     num = 4
@@ -233,7 +229,7 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
             simU[:,i] = acados_ocp_solver.get(i, "u")
         simX[:,N_prediction] = acados_ocp_solver.get(N_prediction, "x")
 
-        print(simX[:,10])
+        #print(simX[:,10])
 
         u_control[:, k] = simU[:,0]
 
@@ -245,8 +241,8 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
         # Get Control Signal
         u_control[:, k] = acados_ocp_solver.get(0, "u")
 
-        print(u_control[:, k])
-        #u_control[:, k] = [0.1, 0.0, 0.0, 0]
+        #print(u_control[:, k])
+        u_control[:, k] = [0.0, 0.0, 0.0, 0]
         send_velocity_control(u_control[:, k], vel_pub, vel_msg)
 
         # System Evolution
