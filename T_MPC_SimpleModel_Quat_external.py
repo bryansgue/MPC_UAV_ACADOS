@@ -25,7 +25,7 @@ import math
 # CARGA FUNCIONES DEL PROGRAMA
 from fancy_plots import plot_pose, plot_error, plot_time
 from Functions_SimpleModel import f_system_simple_model_quat
-from Functions_SimpleModel import f_d, odometry_call_back, get_odometry_simple_quat, send_velocity_control, pub_odometry_sim_quat
+from Functions_SimpleModel import f_d, odometry_call_back, get_odometry_simple_quat, send_velocity_control, pub_odometry_sim_quat, euler_to_quaternion, quaternion_error, publish_matrix 
 import P_UAV_simple
 
 # Global variables Odometry Drone
@@ -75,8 +75,12 @@ def create_ocp_solver_description(x0, N_horizon, t_horizon, zp_max, zp_min, phi_
     ocp.cost.cost_type_e = "EXTERNAL"
 
     error_pose = ocp.p[0:3] - model.x[0:3]
-    ocp.model.cost_expr_ext_cost = error_pose.T @ Q_mat @error_pose  + model.u.T @ R_mat @ model.u 
-    ocp.model.cost_expr_ext_cost_e = error_pose.T @ Q_mat @ error_pose
+
+   
+
+    quat_error = quaternion_error(ocp.p[3:7], model.x[3:7])
+    ocp.model.cost_expr_ext_cost = error_pose.T @ Q_mat @error_pose  + model.u.T @ R_mat @ model.u + 1 * (1 - quat_error[0]) + 7 * (quat_error[1:]).T @ quat_error[1:]
+    ocp.model.cost_expr_ext_cost_e = error_pose.T @ Q_mat @ error_pose +  1 * (1 - quat_error[0]) + 7 * (quat_error[1:4]).T @ quat_error[1:4]
 
 
     # set constraints
@@ -129,13 +133,13 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
     x[:, 0] = [1,1,5,1,0,0,0.5,0,0,0,0]
 
     #TAREA DESEADA
-    num = 4
-    xd = lambda t: 4 * np.sin(5*0.04*t) + 3
-    yd = lambda t: 4 * np.sin(5*0.08*t)
-    zd = lambda t: 2.5 * np.sin (0.2* t) + 5  
-    xdp = lambda t: 4 * 5 * 0.04 * np.cos(5*0.04*t)
-    ydp = lambda t: 4 * 5 * 0.08 * np.cos(5*0.08*t)
-    zdp = lambda t: 2.5 * 0.2 * np.cos(0.2 * t)
+    value = 9
+    xd = lambda t: 4 * np.sin(value*0.04*t) + 3
+    yd = lambda t: 4 * np.sin(value*0.08*t)
+    zd = lambda t: 2 * np.sin(value*0.08*t) + 6
+    xdp = lambda t: 4 * value * 0.04 * np.cos(value*0.04*t)
+    ydp = lambda t: 4 * value * 0.08 * np.cos(value*0.08*t)
+    zdp = lambda t: 2 * value * 0.08 * np.cos(value*0.08*t)
 
     hxd = xd(t)
     hyd = yd(t)
@@ -147,16 +151,31 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
     psid = np.arctan2(hydp, hxdp)
     psidp = np.gradient(psid, t_s)
 
-    # Reference Signal of the system
+    #quaternion = euler_to_quaternion(0, 0, psid) 
+    quatd= np.zeros((4, t.shape[0]), dtype = np.double)
+
+
+    # Calcular los cuaterniones utilizando la función euler_to_quaternion para cada psid
+    for i in range(t.shape[0]):
+        quaternion = euler_to_quaternion(0, 0, psid[i])  # Calcula el cuaternión para el ángulo de cabeceo en el instante i
+        quatd[:, i] = quaternion  # Almacena el cuaternión en la columna i de 'quatd'
+
+
+    
+    # Reference Signal of the system  11 states + 4
     xref = np.zeros((15, t.shape[0]), dtype = np.double)
-    xref[0,:] = 5
-    xref[1,:] = 5
-    xref[2,:] = 5  
-    xref[3,:] = 1 
-    xref[4,:] = 0
-    xref[5,:] = 0 
-    xref[6,:] = 0 
-    xref[7,:] = 0 
+    xref[0,:] = hxd  #nx
+    xref[1,:] = hyd  #ny
+    xref[2,:] = hzd  #nz  
+    xref[3,:] = quatd[0, :]   #qw 
+    xref[4,:] = quatd[1, :]   #qx
+    xref[5,:] = quatd[2, :]   #qy 
+    xref[6,:] = quatd[3, :]   #qz 
+    xref[7,:] = 0   #ul   
+    xref[8,:] = 0   #um 
+    xref[9,:] = 0   #un
+    xref[10,:] = 0  #w
+
     # Initial Control values
     u_control = np.zeros((4, t.shape[0]-N_prediction), dtype = np.double)
     #u_control = np.zeros((4, t.shape[0]), dtype = np.double)
@@ -192,14 +211,12 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
 
     # Initial States Acados
     for stage in range(N_prediction + 1):
-        acados_ocp_solver.set(stage, "x", 0.0 * np.ones(x[:,0].shape))
+        acados_ocp_solver.set(stage, "x", 1 * np.ones(x[:,0].shape))
     for stage in range(N_prediction):
         acados_ocp_solver.set(stage, "u", np.zeros((nu,)))
 
     # Errors of the system
-    Ex = np.zeros((1, t.shape[0]-N_prediction), dtype = np.double)
-    Ey = np.zeros((1, t.shape[0]-N_prediction), dtype = np.double)
-    Ez = np.zeros((1, t.shape[0]-N_prediction), dtype = np.double)
+    Error = np.zeros((3, t.shape[0]-N_prediction), dtype = np.double)
 
     # Simulation System
     ros_rate = 30  # Tasa de ROS en Hz
@@ -207,9 +224,11 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
 
     for k in range(0, t.shape[0]-N_prediction):
         tic = time.time()
-        Ex[:, k] = xref[0, k] - x[0, k]
-        Ey[:, k] = xref[1, k] - x[1, k]
-        Ez[:, k] = xref[2, k] - x[2, k]
+
+        #print(quatd[:, k])
+        print(xref[3:7, k])
+        
+        Error[:,k] = xref[0:3, k] - x[0:3, k]
 
         # Control Law Section
         acados_ocp_solver.set(0, "lbx", x[:,k])
@@ -229,6 +248,8 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
             simU[:,i] = acados_ocp_solver.get(i, "u")
         simX[:,N_prediction] = acados_ocp_solver.get(N_prediction, "x")
 
+        publish_matrix(simX[0:3, 0:N_prediction], '/Prediction')
+
         #print(simX[:,10])
 
         u_control[:, k] = simU[:,0]
@@ -242,7 +263,7 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
         u_control[:, k] = acados_ocp_solver.get(0, "u")
 
         #print(u_control[:, k])
-        u_control[:, k] = [0.0, 0.0, 0.0, 0]
+        #u_control[:, k] = [0.0, 0.0, 0.0, 0]
         send_velocity_control(u_control[:, k], vel_pub, vel_msg)
 
         # System Evolution
@@ -259,7 +280,7 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
         
         delta_t[:, k] = toc_solver
         
-        print("x:", " ".join("{:.2f}".format(value) for value in np.round(x[0:12, k], decimals=2)))
+        #print("x:", " ".join("{:.2f}".format(value) for value in np.round(x[0:12, k], decimals=2)))
         
         rate.sleep() 
         toc = time.time() - tic 
@@ -268,105 +289,12 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
     
     send_velocity_control([0, 0, 0, 0], vel_pub, vel_msg)
 
-    
-
-    fig1, ax11 = fancy_plots_1()
-    states_x, = ax11.plot(t[0:x.shape[1]], x[0,:],
-                    color='#BB5651', lw=2, ls="-")
-    states_y, = ax11.plot(t[0:x.shape[1]], x[1,:],
-                    color='#69BB51', lw=2, ls="-")
-    states_z, = ax11.plot(t[0:x.shape[1]], x[2,:],
-                    color='#5189BB', lw=2, ls="-")
-    states_xd, = ax11.plot(t[0:x.shape[1]], xref[0,0:x.shape[1]],
-                    color='#BB5651', lw=2, ls="--")
-    states_yd, = ax11.plot(t[0:x.shape[1]], xref[1,0:x.shape[1]],
-                    color='#69BB51', lw=2, ls="--")
-    states_zd, = ax11.plot(t[0:x.shape[1]], xref[2,0:x.shape[1]],
-                    color='#5189BB', lw=2, ls="--")
-
-    ax11.set_ylabel(r"$[states]$", rotation='vertical')
-    ax11.set_xlabel(r"$[t]$", labelpad=5)
-    ax11.legend([states_x, states_y, states_z, states_xd, states_yd, states_zd],
-            [r'$x$', r'$y$', r'$z$', r'$x_d$', r'$y_d$', r'$z_d$'],
-            loc="best",
-            frameon=True, fancybox=True, shadow=False, ncol=2,
-            borderpad=0.5, labelspacing=0.5, handlelength=3, handletextpad=0.1,
-            borderaxespad=0.3, columnspacing=2)
-    ax11.grid(color='#949494', linestyle='-.', linewidth=0.5)
-
-    #fig1.savefig("states_xyz.eps")
-    fig1.savefig("states_xyz.png")
-    fig1
-
-
-    fig2, ax12 = fancy_plots_1()
-    states_phi, = ax12.plot(t[0:x.shape[1]], x[3,:],
-                    color='#BB5651', lw=2, ls="-")
-    states_theta, = ax12.plot(t[0:x.shape[1]], x[4,:],
-                    color='#69BB51', lw=2, ls="-")
-    states_psi, = ax12.plot(t[0:x.shape[1]], x[5,:],
-                    color='#5189BB', lw=2, ls="-")
-
-    ax12.set_ylabel(r"$[states]$", rotation='vertical')
-    ax12.set_xlabel(r"$[t]$", labelpad=5)
-    ax12.legend([states_phi, states_theta, states_psi],
-            [r'$\phi$', r'$\theta$', r'$\psi$'],
-            loc="best",
-            frameon=True, fancybox=True, shadow=False, ncol=2,
-            borderpad=0.5, labelspacing=0.5, handlelength=3, handletextpad=0.1,
-            borderaxespad=0.3, columnspacing=2)
-    ax12.grid(color='#949494', linestyle='-.', linewidth=0.5)
-
-    #fig2.savefig("states_angles.eps")
-    fig2.savefig("states_angles.png")
-    fig2
-
-
-    fig3, ax13 = fancy_plots_1()
-    ## Axis definition necesary to fancy plots
-    ax13.set_xlim((t[0], t[-1]))
-
-    time_1, = ax13.plot(t[0:delta_t.shape[1]],delta_t[0,:],
-                    color='#00429d', lw=2, ls="-")
-    tsam1, = ax13.plot(t[0:t_sample.shape[1]],t_sample[0,:],
-                    color='#9e4941', lw=2, ls="-.")
-
-    ax13.set_ylabel(r"$[s]$", rotation='vertical')
-    ax13.set_xlabel(r"$\textrm{Time}[s]$", labelpad=5)
-    ax13.legend([time_1,tsam1],
-            [r'$t_{compute}$',r'$t_{sample}$'],
-            loc="best",
-            frameon=True, fancybox=True, shadow=False, ncol=2,
-            borderpad=0.5, labelspacing=0.5, handlelength=3, handletextpad=0.1,
-            borderaxespad=0.3, columnspacing=2)
-    ax13.grid(color='#949494', linestyle='-.', linewidth=0.5)
-
-    #fig3.savefig("time.eps")
-    fig3.savefig("time.png")
-    fig3
-
-    fig4, ax14 = fancy_plots_1()
-    errors_x, = ax14.plot(t[0:Ex.shape[1]], Ex[0,:],
-                    color='#BB5651', lw=2, ls="-")
-    errors_y, = ax14.plot(t[0:Ex.shape[1]], Ey[0,:],
-                    color='#69BB51', lw=2, ls="-")
-    errors_z, = ax14.plot(t[0:Ex.shape[1]], Ez[0,:],
-                    color='#5189BB', lw=2, ls="-")
-
-    ax14.set_ylabel(r"$[Errors]$", rotation='vertical')
-    ax14.set_xlabel(r"$[t]$", labelpad=5)
-    ax14.legend([errors_x, errors_y, errors_z],
-            [r'$\tilde{h}_x$', r'$\tilde{h}_y$', r'$\tilde{h}_z$'],
-            loc="best",
-            frameon=True, fancybox=True, shadow=False, ncol=2,
-            borderpad=0.5, labelspacing=0.5, handlelength=3, handletextpad=0.1,
-            borderaxespad=0.3, columnspacing=2)
-    ax14.grid(color='#949494', linestyle='-.', linewidth=0.5)
-
-    #fig4.savefig("errors.eps")
-    fig4.savefig("errors_pos.png")
-    fig4
-  
+    fig1 = plot_pose(x, xref, t)
+    fig1.savefig("1_pose.png")
+    fig2 = plot_error(Error, t)
+    fig2.savefig("2_error_pose.png")
+    fig3 = plot_time(t_sample, delta_t , t)
+    fig3.savefig("3_Time.png")
 
     print(f'Mean iteration time with MLP Model: {1000*np.mean(delta_t):.1f}ms -- {1/np.mean(delta_t):.0f}Hz)')
 

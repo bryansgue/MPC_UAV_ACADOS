@@ -220,7 +220,7 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
 
     # Initial States Acados
     for stage in range(N_prediction + 1):
-        acados_ocp_solver.set(stage, "x", 0.0 * np.ones(x[:,0].shape))
+        acados_ocp_solver.set(stage, "x", 1 * np.ones(x[:,0].shape))
     for stage in range(N_prediction):
         acados_ocp_solver.set(stage, "u", np.zeros((nu,)))
 
@@ -323,7 +323,8 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
                 'x_states': x,
                 'ref': ref,
                 'u_input': u_control,
-                't_time': t })
+                't_time': t ,
+                'mpc_time': delta_t})
 
 
     print(f'Mean iteration time with MLP Model: {1000*np.mean(delta_t):.1f}ms -- {1/np.mean(delta_t):.0f}Hz)')

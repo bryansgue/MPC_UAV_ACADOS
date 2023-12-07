@@ -16,6 +16,7 @@ import math
 import matplotlib.pyplot as plt
 import time
 import rospy
+from std_msgs.msg import Float64MultiArray
 
 
 # Global variables Odometry Drone
@@ -200,6 +201,9 @@ def f_system_simple_model_quat():
     um_ref_d= MX.sym('um_ref_d')
     un_ref_d = MX.sym('un_ref_d')
     w_ref_d = MX.sym('w_ref_d')
+
+    nx_obs = MX.sym('nx_obs')
+    ny_obs = MX.sym('ny_obs')
     
     p = vertcat(nx_d, ny_d, nz_d, qw_d, qx_d, qy_d, qz_d, ul_d, um_d, un_d, w_d, ul_ref_d, um_ref_d, un_ref_d, w_ref_d)
 
@@ -244,6 +248,9 @@ def f_system_simple_model_quat():
 
     f_expl = MX.zeros(11, 1)
     f_expl = A @ x + B @ u 
+
+    f_x = A @ x 
+    g_x = B
 
     f_system = Function('system',[x, u], [f_expl])
      # Acados Model
@@ -550,4 +557,48 @@ def FLUtoENU(u, quaternion):
 
     return v
 
+def quaternionMultiply(q1, q2):
+    w1, x1, y1, z1 = q1[0], q1[1], q1[2], q1[3]
+    w2, x2, y2, z2 = q2[0], q2[1], q2[2], q2[3]
+    
+    scalarPart = w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2
+    vectorPart = vertcat(w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
+                         w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,
+                         w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2)
+    
+    q_result = vertcat(scalarPart, vectorPart)
+    return q_result
 
+def quaternion_error(q_real, quat_d):
+    norm_q = norm_2(q_real)
+    q_inv = vertcat(q_real[0], -q_real[1], -q_real[2], -q_real[3]) / norm_q
+    
+    q_error = quaternionMultiply(q_inv, quat_d)
+    return q_error
+
+
+def publish_matrix(matrix_data, topic_name='/nombre_del_topico'):
+    """
+    Publica una matriz en un tópico ROS.
+
+    Args:
+        matrix_data (numpy.ndarray): La matriz a publicar.
+        topic_name (str): El nombre del tópico ROS en el que se publicará la matriz.
+    """
+    # Inicializa el nodo ROS si aún no está inicializado
+   
+
+    # Crea una instancia del mensaje Float64MultiArray
+    matrix_msg = Float64MultiArray()
+
+    # Convierte la matriz NumPy en una lista plana
+    matrix_data_flat = matrix_data.flatten().tolist()
+
+    # Asigna los datos de la matriz al mensaje
+    matrix_msg.data = matrix_data_flat
+
+    # Crea un publicador para el tópico deseado
+    matrix_publisher = rospy.Publisher(topic_name, Float64MultiArray, queue_size=10)
+
+    # Publica el mensaje en el tópico
+    matrix_publisher.publish(matrix_msg)
