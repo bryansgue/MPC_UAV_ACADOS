@@ -76,7 +76,7 @@ def create_ocp_solver_description(x0, N_horizon, t_horizon, zp_max, zp_min, phi_
     Q_mat[0, 0] = 3
     Q_mat[1, 1] = 3
     Q_mat[2, 2] = 3
-    Q_mat[3, 3] = 0.5
+    Q_mat[3, 3] = 1
 
     R_mat = MX.zeros(4, 4)
     R_mat[0, 0] = 1.5*(1/3)
@@ -94,9 +94,9 @@ def create_ocp_solver_description(x0, N_horizon, t_horizon, zp_max, zp_min, phi_
     ocp.model.cost_expr_ext_cost_e = error_pose.T @ Q_mat @ error_pose
 
     # set constraints
-    ocp.constraints.lbu = np.array([-3, -3, -3, -0.05])
-    ocp.constraints.ubu = np.array([3, 3, 3, 0.05])
-    ocp.constraints.idxbu = np.array([0, 1, 2, 3])
+    ocp.constraints.lbu = np.array([-3, -3, -3])
+    ocp.constraints.ubu = np.array([3, 3, 3])
+    ocp.constraints.idxbu = np.array([0, 1, 2])
 
     ocp.constraints.x0 = x0
 
@@ -166,7 +166,7 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
     ref[0,:] = hxd 
     ref[1,:] = hyd
     ref[2,:] = hzd  
-    ref[3,:] = 0*psid 
+    ref[3,:] = psid 
     ref[4,:] = 0
     ref[5,:] = 0 
     ref[6,:] = 0 
@@ -190,7 +190,7 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
     ros_rate = 30  # Tasa de ROS en Hz
     rate = rospy.Rate(ros_rate)  # Crear un objeto de la clase rospy.Rate
 
-    P_UAV_simple.main(vel_pub, vel_msg )
+    #P_UAV_simple.main(vel_pub, vel_msg )
 
     #INICIALIZA LECTURA DE ODOMETRIA
     for k in range(0, 10):
@@ -267,7 +267,7 @@ def main(vel_pub, vel_msg, odom_sim_pub, odom_sim_msg):
         send_velocity_control(u_control[:, k], vel_pub, vel_msg)
 
         # System Evolution
-        opcion = "Real"  # Valor que quieres evaluar
+        opcion = "Sim"  # Valor que quieres evaluar
 
         if opcion == "Real":
             x[:, k+1] = get_odometry_simple()
