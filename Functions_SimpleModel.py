@@ -5,10 +5,12 @@ from casadi import vertcat
 from casadi import horzcat
 from casadi import cos
 from casadi import sin
+from casadi import atan2
 from casadi import solve
 from casadi import inv
 from casadi import mtimes
 from casadi import norm_2
+from casadi import if_else
 from acados_template import AcadosModel
 import numpy as np
 from scipy.spatial.transform import Rotation as R
@@ -571,10 +573,42 @@ def quaternionMultiply(q1, q2):
 
 def quaternion_error(q_real, quat_d):
     norm_q = norm_2(q_real)
+   
+    
     q_inv = vertcat(q_real[0], -q_real[1], -q_real[2], -q_real[3]) / norm_q
     
     q_error = quaternionMultiply(q_inv, quat_d)
     return q_error
+
+
+def log_cuaternion_casadi(q):
+ 
+
+    # Descomponer el cuaternio en su parte escalar y vectorial
+    q_w = q[0]
+    q_v = q[1:]
+
+    q = if_else(
+        q_w < 0,
+        -q,  # Si q_w es negativo, sustituir q por -q
+        q    # Si q_w es positivo o cero, dejar q sin cambios
+    )
+
+    # Actualizar q_w y q_v después de cambiar q si es necesario
+    q_w = q[0]
+    q_v = q[1:]
+    
+    # Calcular la norma de la parte vectorial usando CasADi
+    norm_q_v = norm_2(q_v)
+
+    print(norm_q_v)
+    
+    # Calcular el ángulo theta
+    theta = atan2(norm_q_v, q_w)
+    
+    log_q = 2 * q_v * theta / norm_q_v
+    
+    return log_q
 
 
 def publish_matrix(matrix_data, topic_name='/nombre_del_topico'):

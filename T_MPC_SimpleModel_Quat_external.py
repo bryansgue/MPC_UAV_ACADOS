@@ -24,7 +24,7 @@ import math
 
 # CARGA FUNCIONES DEL PROGRAMA
 from fancy_plots import plot_pose, plot_error, plot_time
-from Functions_SimpleModel import f_system_simple_model_quat
+from Functions_SimpleModel import f_system_simple_model_quat, log_cuaternion_casadi
 from Functions_SimpleModel import f_d, odometry_call_back, get_odometry_simple_quat, send_velocity_control, pub_odometry_sim_quat, euler_to_quaternion, quaternion_error, publish_matrix 
 import P_UAV_simple
 
@@ -63,6 +63,11 @@ def create_ocp_solver_description(x0, N_horizon, t_horizon, zp_max, zp_min, phi_
     Q_mat[1, 1] = 1.1
     Q_mat[2, 2] = 1.1
 
+    K_mat = MX.zeros(3, 3)
+    K_mat[0, 0] = 1.1
+    K_mat[1, 1] = 1.1
+    K_mat[2, 2] = 1.1
+
     R_mat = MX.zeros(4, 4)
     R_mat[0, 0] = 1
     R_mat[1, 1] = 1
@@ -78,9 +83,18 @@ def create_ocp_solver_description(x0, N_horizon, t_horizon, zp_max, zp_min, phi_
 
    
 
-    quat_error = quaternion_error(ocp.p[3:7], model.x[3:7])
-    ocp.model.cost_expr_ext_cost = error_pose.T @ Q_mat @error_pose  + model.u.T @ R_mat @ model.u + 1 * (1 - quat_error[0]) + 7 * (quat_error[1:]).T @ quat_error[1:]
-    ocp.model.cost_expr_ext_cost_e = error_pose.T @ Q_mat @ error_pose +  1 * (1 - quat_error[0]) + 7 * (quat_error[1:4]).T @ quat_error[1:4]
+    quat_error = quaternion_error(model.x[3:7], ocp.p[3:7])
+
+
+    # Calcular Log(q)
+    log_q = log_cuaternion_casadi(quat_error)
+
+
+    #ocp.model.cost_expr_ext_cost = error_pose.T @ Q_mat @error_pose  + model.u.T @ R_mat @ model.u + 1 * (1 - quat_error[0]) + 7 * (quat_error[1:]).T @ quat_error[1:]
+    #ocp.model.cost_expr_ext_cost_e = error_pose.T @ Q_mat @ error_pose +  1 * (1 - quat_error[0]) + 7 * (quat_error[1:4]).T @ quat_error[1:4]
+
+    ocp.model.cost_expr_ext_cost = error_pose.T @ Q_mat @error_pose  + model.u.T @ R_mat @ model.u + log_q.T @ K_mat @ log_q
+    ocp.model.cost_expr_ext_cost_e = error_pose.T @ Q_mat @ error_pose +  log_q.T @  K_mat @ log_q
 
 
     # set constraints
